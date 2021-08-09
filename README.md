@@ -1,70 +1,106 @@
-# Getting Started with Create React App
+리코일은 페이스북에서 만든 전역 상태 라이브러리로, 기존 리덕스를 사용할 때 겪었던 상태 관리의 복잡함을 크게 줄일 수 있다.
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+# 기본 구성 요소
 
-## Available Scripts
+---
 
-In the project directory, you can run:
+## Atom
 
-### `yarn start`
+리덕스의 스토어가 갖는 상태에 대응하는 값을 리코일에서는 `atom` 이라고 한다.
+`atom`은 전역 상태처럼 여러 컴포넌트에서 공유될 수 있으며, 업데이트와 구독이 가능하다는 특징이 있다.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+```jsx
+const counterState = atom({
+  key: "counterState",
+  default: 0,
+});
+```
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+`atom`은 반드시 고유한 키를 가진다. (키의 이름이 상태값이라고 생각하자.)
+`atom`을 읽고 쓰려면 `useRecoilState` 라는 훅을 사용한다.
 
-### `yarn test`
+```jsx
+function Counter = () => {
+	const [count, setCount] = useRecoilState(counterState);
+	return (
+		<button onClick = {() => setCount((count) => count + 1)}>+</button>
+	)
+}
+```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+`useRecoilState` 는 `useState` 와 아주 유사하지만, 전역 상태를 조작한다는 차이가 있다.
 
-### `yarn build`
+> `useState` 훅처럼 익숙한 방법으로 상태를 업데이트할 수 있다는 것이 아주 큰 장점인 것 같다.
+> 리덕스를 사용할 때는 리덕스와 디스패치 등 비교적 복잡한 로직들을 일일히 구현해야 했던 것에 비해 굉장히 편리하다.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+---
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Selector
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+`Selector`는 `atom` 이나 또다른 `Selector`를 입력으로 받아들여 구독하고 정해진 로직을 실행하는 **순수 함수다.**
 
-### `yarn eject`
+(react-redux의 `useSelector`와는 다른 역할이다.
+`useSelector` 가 전역 상태를 불러오는 역할이었다면, 리코일의 셀렉터는 `useEffect` 의 역할에 더 가까운 듯 하다.)
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+> 순수 함수란 : 동일한 인자를 주었을 때 언제나 동일한 값을 리턴하고, 외부로부터 영향을 받지도, 주지도 않는 함수
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+즉, Atom은 원자라는 뜻처럼 최소한의 상태값만을 갖고, 이를 기반으로 하는 데이터를 계산할 때 사용한다.
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+---
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+```jsx
+const CounterUnitState = selector({
+  key: "CounterUnitState",
+  get: ({ get }) => {
+    // 이전에 정의한 counterState 아톰에 접근한다.
+    // 해당 아톰의 변화를 구독한다.
+    const counter = get(counterState);
+    const unit = "회";
+    return `${counter}${unit}`;
+  },
+});
+```
 
-## Learn More
+`selector` 함수의 `get` 프로퍼티는 계산을 수행할 함수가 된다.
+이 함수에서는 다른 `atom` 이나 `selector` 에 접근할 수 있으며, 참조하는 `atom`과 `selector`의 변화를 구독한다.
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+`selector`를 읽고 쓸 때는 `useRecoilvalue` 라는 훅을 사용한다.
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+`useRecoilValue`는 하나의 atom이나 selector를 인자로 받아 대응하는 값을 반환한다.
 
-### Code Splitting
+```jsx
+function Counter = () => {
+	const [count, setCount] = useRecoilState(counterState);
+	const counterUnit = useRecoilValue(counterUnitState);
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+	return (
+		<>
+			<div>현재 클릭한 횟수 : {counterUnit}</div>
+			<button onClick = {() => setCount((count) => count + 1)}>+</button>
+		</>
+	)
+}
+```
 
-### Analyzing the Bundle Size
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+# 리코일 사용하기
 
-### Making a Progressive Web App
+## RecoilRoot
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+리덕스에서 `Provider` 같은 컴포넌트로 루트 컴포넌트를 감쌌던 것처럼, 리코일에서는 `RecoilRoot` 컴포넌트를 통해 모든 컴포넌트를 감싼다.
 
-### Advanced Configuration
+```jsx
+import React from 'react';
+import { RecoilRoot } from 'recoil';
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+function App() {
+  return (
+    <RecoilRoot>
+      <... 하위 컴포넌트들 />
+    </RecoilRoot>
+  );
+}
+```
 
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `yarn build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+별도의 스토어 설정은 필요하지 않은 듯 하며, `atom`과 `selector` 단위로 전역 상태를 조작하는 법만 익히면 너무나도 간단하게 상태를 전역으로 관리할 수 있다.
